@@ -1,0 +1,253 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  "This is to test all the resource I've learnt in CFT"
+Mappings:
+  linuxmap:
+    us-east-1:
+      ami: ami-051f8a213df8bc089
+    us-east-2:
+      ami: ami-0900fe555666598a2
+    us-west-1:
+      ami: ami-0aec1cbfa00609468
+    us-west-2:
+      ami: ami-0395649fbe870727e
+    ap-south-1:
+      ami: ami-09298640a92b2d12c
+    ap-northeast-3:
+      ami: ami-0e6b39f9c6aa725c7
+    ap-northeast-2:
+      ami: ami-07427619b8e8c799b
+    ap-southeast-1:
+      ami: ami-0910e4162f162c238
+    ap-southeast-2:
+      ami: ami-0035ee596a0a12a7b
+    ap-northeast-1:
+      ami: ami-0962657fe505b0123
+    ca-central-1:
+      ami: ami-0f5a06fb334bd0825
+    eu-central-1:
+      ami:  ami-0f7204385566b32d0
+    eu-west-1:
+      ami:  ami-0aa99174e2f8adfb4
+    eu-west-2:
+      ami: ami-0f00a31129b3158a1
+    eu-west-3:
+      ami: ami-0a1491ab12bfc93df
+    eu-north-1:
+      ami: ami-043591555d9d80338
+    sa-east-1:
+      ami: ami-0c2acb187401cf1f5
+
+  windowsmap:
+    us-east-1:
+      ami: ami-03cd80cfebcbb4481
+    us-east-2:
+      ami: ami-02db44a38cfb5d753
+    us-west-1:
+      ami: ami-0b990d3cfca306617
+    us-west-2:
+      ami: ami-03ea14ccbeab7b2d5
+    ap-south-1:
+      ami: ami-05ac570307b6820b7
+    ap-northeast-3:
+      ami: ami-0e6b39f9c6aa725c7
+    ap-northeast-2:
+      ami: ami-07427619b8e8c799b
+    ap-southeast-1:
+      ami: ami-0910e4162f162c238
+    ap-southeast-2:
+      ami: ami-0035ee596a0a12a7b
+    ap-northeast-1:
+      ami: ami-0962657fe505b0123
+    ca-central-1:
+      ami: ami-0f5a06fb334bd0825
+    eu-central-1:
+      ami:  ami-0f7204385566b32d0
+    eu-west-1:
+      ami: ami-0aa99174e2f8adfb4
+    eu-west-2:
+      ami: ami-0f00a31129b3158a1
+    eu-west-3:
+      ami: ami-0a1491ab12bfc93df
+    eu-north-1:
+      ami: ami-043591555d9d80338
+    sa-east-1:
+      ami: ami-0c2acb187401cf1f5
+
+Parameters:
+  username: 
+    Type: String
+
+  password:
+    Type: String
+  
+  AMIType:
+    Type: String
+    Default: Linux
+    AllowedValues:
+      - Linux
+      - Windows
+      - Both
+  
+  InstanceType:
+    Type: String
+    Description: "will provide us all the instace type"
+    Default: "t2.micro"
+    AllowedValues:
+      - "t2.micro"
+      - "t2.small"
+      - "t2.nano"
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+
+Conditions:
+  Ec2Launchlinux: !Or [!Equals [!Ref AMIType,Linux], !Equals [!Ref AMIType, Both]]
+  Ec2LaunchWindows: !Or [!Equals [!Ref AMIType,Windows], !Equals [!Ref AMIType, Both]]
+  WindowsSec: !Or [!Equals [!Ref AMIType,Windows], !Equals [!Ref AMIType, Both]]
+  LinuxSec: !Or [!Equals [!Ref AMIType,Linux], !Equals [!Ref AMIType, Both]]
+
+Resources:
+  CreateVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+
+  CreateSubnetone:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AssignIpv6AddressOnCreation: false
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref CreateVPC # Required
+    
+  CreateRoutetable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CreateVPC # Required
+  
+  VPCgateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref Createinternetgateway
+      VpcId: !Ref CreateVPC # Required
+
+  Createinternetgateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags: 
+        - Key: name
+          Value: internetgateway
+
+  Routetableinternetgateway:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref Createinternetgateway
+      RouteTableId: !Ref CreateRoutetable # Required
+
+  SubnetoneRoutetable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref CreateRoutetable # Required
+      SubnetId: !Ref CreateSubnetone # Required
+
+  SecurityGroupsLinux:
+    Type: AWS::EC2::SecurityGroup
+    Condition: LinuxSec
+    Properties:
+      GroupDescription: "Allow only Linux" # Required
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: TCP
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: ICMP
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref CreateVPC
+  
+  SecurityGroupsWindows:
+    Type: AWS::EC2::SecurityGroup
+    Condition: WindowsSec
+    Properties:
+      GroupDescription: "Allow only Windows" # Required
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: TCP
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: ICMP
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref CreateVPC
+
+  EC2instancelaunchLinux:
+    Type: AWS::EC2::Instance
+    Condition: Ec2Launchlinux 
+    Properties:
+      ImageId: !FindInMap 
+              - linuxmap
+              - !Ref AWS::Region
+              - ami
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+          - SubnetId: !Ref CreateSubnetone
+            AssociatePublicIpAddress: 'true'
+            DeviceIndex: '0'
+            GroupSet: 
+            - !Ref SecurityGroupsLinux
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+          systemctl restart sshd
+          useradd ${username}
+          echo "${username}:${password}"  | chpasswd
+          yum install httpd -y
+          systemctl start httpd
+          systemctl enable httpd
+          touch /var/www/html/index.html
+          echo "Linux page by ${username}" > /var/www/html/index.html
+          systemctl restart httpd
+
+
+  EC2instancelaunchWindows:
+    Type: AWS::EC2::Instance
+    Condition: Ec2LaunchWindows
+    Properties:
+      ImageId: !FindInMap
+            - windowsmap
+            - !Ref AWS::Region
+            - ami
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+          - SubnetId: !Ref CreateSubnetone
+            AssociatePublicIpAddress: 'true'
+            DeviceIndex: '0'
+            GroupSet: 
+            - !Ref SecurityGroupsWindows 
+      UserData: 
+        Fn::Base64: !Sub |
+          <Powershell>
+            $username= "${username}"
+            $password = ConvertTo-SecureString "${password}" -AsPlainText -Force
+            New-LocalUser -Name $username -Password $password
+            Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username
+            Enable-WindowsOptionalFeature -Online -FeatureName "IIS-DefaultDocument" -All
+            Add-Content -Path C:\inetpub\wwwroot\index.html "Windows page by ${username}"
+
+          </Powershell>
